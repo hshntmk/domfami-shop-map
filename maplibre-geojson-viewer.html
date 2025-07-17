@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MapLibre GL JS GeoJSON Viewer</title>
+    <script src="https://unpkg.com/maplibre-gl@^5.6.1/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@^5.6.1/dist/maplibre-gl.css" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 15px 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        
+        .controls {
+            background: white;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .file-input-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .file-input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            min-width: 300px;
+        }
+        
+        .file-button {
+            background: #3498db;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        
+        .file-button:hover {
+            background: #2980b9;
+        }
+        
+        .info {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .sample-data-btn {
+            background: #27ae60;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        
+        .sample-data-btn:hover {
+            background: #219a52;
+        }
+        
+        .popup {
+            max-width: 300px;
+        }
+        
+        .popup h3 {
+            margin: 0 0 10px 0;
+            color: #2c3e50;
+        }
+        
+        .popup p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        
+        .popup strong {
+            color: #2c3e50;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>MapLibre GL JS GeoJSON Viewer</h1>
+        </div>
+        
+        <div class="controls">
+            <button class="file-button" onclick="loadGeoJSONData()">GeoJSONデータを読み込み</button>
+            
+            <button class="sample-data-btn" onclick="loadSampleData()">サンプルデータを読み込み</button>
+            
+            <div class="info">
+                <span id="fileInfo">GeoJSONが読み込まれていません</span>
+                <span id="status" class="status" style="display: none;"></span>
+            </div>
+        </div>
+        
+        <div class="map-container">
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <script>
+        let map;
+        let currentGeoJSON = null;
+        
+        // マップの初期化
+        function initMap() {
+            map = new maplibregl.Map({
+                container: 'map',
+                style: {
+                    version: 8,
+                    sources: {
+                        'osm': {
+                            type: 'raster',
+                            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+                            tileSize: 256,
+                            attribution: '© OpenStreetMap contributors'
+                        }
+                    },
+                    layers: [{
+                        id: 'osm',
+                        type: 'raster',
+                        source: 'osm'
+                    }]
+                },
+                center: [139.6917, 35.6895], // 東京の座標
+                zoom: 10
+            });
+            
+            // ナビゲーションコントロールを追加
+            map.addControl(new maplibregl.NavigationControl());
+        }
+        
+        // ステータス表示
+        function showStatus(message, isError = false) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${isError ? 'error' : 'success'}`;
+            status.style.display = 'inline-block';
+            
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 3000);
+        }
+        
+        // GeoJSONデータの読み込み
+        function loadGeoJSON(geojsonData) {
+            try {
+                // 既存のレイヤーとソースを削除
+                if (map.getLayer('geojson-points')) {
+                    map.removeLayer('geojson-points');
+                }
+                if (map.getLayer('geojson-lines')) {
+                    map.removeLayer('geojson-lines');
+                }
+                if (map.getLayer('geojson-polygons')) {
+                    map.removeLayer('geojson-polygons');
+                }
+                if (map.getSource('geojson-data')) {
+                    map.removeSource('geojson-data');
+                }
+                
+                // 新しいソースを追加
+                map.addSource('geojson-data', {
+                    type: 'geojson',
+                    data: geojsonData
+                });
+                
+                // ポイントレイヤーを追加
+                map.addLayer({
+                    id: 'geojson-points',
+                    type: 'circle',
+                    source: 'geojson-data',
+                    filter: ['==', '$type', 'Point'],
+                    paint: {
+                        'circle-radius': 8,
+                        'circle-color': '#3498db',
+                        'circle-stroke-color': '#ffffff',
+                        'circle-stroke-width': 2,
+                        'circle-opacity': 0.8
+                    }
+                });
+                
+                // ラインレイヤーを追加
+                map.addLayer({
+                    id: 'geojson-lines',
+                    type: 'line',
+                    source: 'geojson-data',
+                    filter: ['==', '$type', 'LineString'],
+                    paint: {
+                        'line-color': '#e74c3c',
+                        'line-width': 3,
+                        'line-opacity': 0.8
+                    }
+                });
+                
+                // ポリゴンレイヤーを追加
+                map.addLayer({
+                    id: 'geojson-polygons',
+                    type: 'fill',
+                    source: 'geojson-data',
+                    filter: ['==', '$type', 'Polygon'],
+                    paint: {
+                        'fill-color': '#27ae60',
+                        'fill-opacity': 0.3,
+                        'fill-outline-color': '#27ae60'
+                    }
+                });
+                
+                // データの範囲にマップを合わせる
+                const bounds = new maplibregl.LngLatBounds();
+                
+                function addCoordinatesToBounds(coordinates) {
+                    if (typeof coordinates[0] === 'number') {
+                        bounds.extend(coordinates);
+                    } else {
+                        coordinates.forEach(coord => addCoordinatesToBounds(coord));
+                    }
+                }
+                
+                geojsonData.features.forEach(feature => {
+                    addCoordinatesToBounds(feature.geometry.coordinates);
+                });
+                
+                if (!bounds.isEmpty()) {
+                    map.fitBounds(bounds, { padding: 50 });
+                }
+                
+                // ポップアップ機能を追加
+                addPopupHandlers();
+                
+                // 統計情報を表示
+                const pointCount = geojsonData.features.filter(f => f.geometry.type === 'Point').length;
+                const lineCount = geojsonData.features.filter(f => f.geometry.type === 'LineString').length;
+                const polygonCount = geojsonData.features.filter(f => f.geometry.type === 'Polygon').length;
+                
+                const info = [];
+                if (pointCount > 0) info.push(`ポイント: ${pointCount}`);
+                if (lineCount > 0) info.push(`ライン: ${lineCount}`);
+                if (polygonCount > 0) info.push(`ポリゴン: ${polygonCount}`);
+                
+                document.getElementById('fileInfo').textContent = info.join(', ');
+                showStatus('GeoJSONデータを読み込みました');
+                
+                currentGeoJSON = geojsonData;
+                
+            } catch (error) {
+                console.error('GeoJSON読み込みエラー:', error);
+                showStatus('データの読み込みに失敗しました', true);
+            }
+        }
+        
+        // ポップアップハンドラーを追加
+        function addPopupHandlers() {
+            // ポイントのポップアップ
+            map.on('click', 'geojson-points', (e) => {
+                const feature = e.features[0];
+                const properties = feature.properties;
+                
+                let popupContent = '<div class="popup"><h3>ポイント情報</h3>';
+                for (const [key, value] of Object.entries(properties)) {
+                    popupContent += `<p><strong>${key}:</strong> ${value}</p>`;
+                }
+                popupContent += '</div>';
+                
+                new maplibregl.Popup()
+                    .setLngLat(e.lngLat)
+                    .setHTML(popupContent)
+                    .addTo(map);
+            });
+            
+            // ラインのポップアップ
+            map.on('click', 'geojson-lines', (e) => {
+                const feature = e.features[0];
+                const properties = feature.properties;
+                
+                let popupContent = '<div class="popup"><h3>ライン情報</h3>';
+                for (const [key, value] of Object.entries(properties)) {
+                    popupContent += `<p><strong>${key}:</strong> ${value}</p>`;
+                }
+                popupContent += '</div>';
+                
+                new maplibregl.Popup()
+                    .setLngLat(e.lngLat)
+                    .setHTML(popupContent)
+                    .addTo(map);
+            });
+            
+            // ポリゴンのポップアップ
+            map.on('click', 'geojson-polygons', (e) => {
+                const feature = e.features[0];
+                const properties = feature.properties;
+                
+                let popupContent = '<div class="popup"><h3>ポリゴン情報</h3>';
+                for (const [key, value] of Object.entries(properties)) {
+                    popupContent += `<p><strong>${key}:</strong> ${value}</p>`;
+                }
+                popupContent += '</div>';
+                
+                new maplibregl.Popup()
+                    .setLngLat(e.lngLat)
+                    .setHTML(popupContent)
+                    .addTo(map);
+            });
+            
+            // マウスカーソルの変更
+            map.on('mouseenter', 'geojson-points', () => {
+                map.getCanvas().style.cursor = 'pointer';
+            });
+            
+            map.on('mouseleave', 'geojson-points', () => {
+                map.getCanvas().style.cursor = '';
+            });
+            
+            map.on('mouseenter', 'geojson-lines', () => {
+                map.getCanvas().style.cursor = 'pointer';
+            });
+            
+            map.on('mouseleave', 'geojson-lines', () => {
+                map.getCanvas().style.cursor = '';
+            });
+            
+            map.on('mouseenter', 'geojson-polygons', () => {
+                map.getCanvas().style.cursor = 'pointer';
+            });
+            
+            map.on('mouseleave', 'geojson-polygons', () => {
+                map.getCanvas().style.cursor = '';
+            });
+        }
+        
+        // サンプルデータの読み込み
+        function loadSampleData() {
+            const sampleGeoJSON = {
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [139.6917, 35.6895]
+                        },
+                        "properties": {
+                            "name": "東京駅",
+                            "type": "駅",
+                            "description": "東京の中心駅"
+                        }
+                    },
+                    {
+                        "type": "Feature",
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [139.7006, 35.6897]
+                        },
+                        "properties": {
+                            "name": "銀座駅",
+                            "type": "駅",
+                            "description": "銀座の中心駅"
+                        }
+                    },
+                    {
+                        "type": "Feature",
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [139.6503, 35.6762]
+                        },
+                        "properties": {
+                            "name": "新宿駅",
+                            "type": "駅",
+                            "description": "新宿の中心駅"
+                        }
+                    },
+                    {
+                        "type": "Feature",
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [139.7016, 35.6581]
+                        },
+                        "properties": {
+                            "name": "渋谷駅",
+                            "type": "駅",
+                            "description": "渋谷の中心駅"
+                        }
+                    },
+                    {
+                        "type": "Feature",
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [139.7671, 35.6814]
+                        },
+                        "properties": {
+                            "name": "上野駅",
+                            "type": "駅",
+                            "description": "上野の中心駅"
+                        }
+                    }
+                ]
+            };
+            
+            loadGeoJSON(sampleGeoJSON);
+        }
+        
+        // ここにGeoJSONファイルのURLを設定してください
+        const GEOJSON_URL = './domdom_store_list_kanto.geojson';
+	console.log(GEOJSON_URL);
+        
+        // GeoJSONデータを読み込む
+        async function loadGeoJSONData() {
+            try {
+                showStatus('データを読み込み中...', false);
+                
+                const response = await fetch(GEOJSON_URL);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const geojsonData = await response.json();
+                loadGeoJSON(geojsonData);
+                
+            } catch (error) {
+                console.error('GeoJSON読み込みエラー:', error);
+                showStatus(`読み込みエラー: ${error.message}`, true);
+            }
+        }
+        
+        // 初期化（自動読み込みを有効にする場合は以下のコメントアウトを外してください）
+        window.addEventListener('load', function() {
+            initMap();
+            loadGeoJSONData(); // 初期化時に自動でGeoJSONを読み込む場合
+        });
+    </script>
+</body>
+</html>
