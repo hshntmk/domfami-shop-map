@@ -175,7 +175,7 @@
                     sources: {
                         'osm': {
                             type: 'raster',
-                            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+                            tiles: ['https://tile.openstreetmap.jp/{z}/{x}/{y}.png'],
                             tileSize: 256,
                             attribution: '© OpenStreetMap contributors'
                         }
@@ -192,6 +192,18 @@
             
             // ナビゲーションコントロールを追加
             map.addControl(new maplibregl.NavigationControl());
+
+            // 現在位置表示用のコントロールを追加
+            const geolocate = new maplibregl.GeolocateControl({
+                positionOptions: {
+                    // より精度の高い位置情報を取得する
+                    enableHighAccuracy: true
+                },
+                // ユーザーが移動するたびに位置を自動的に更新
+                trackUserLocation: true
+            })
+
+            map.addControl(geolocate)
         }
         
         // ステータス表示
