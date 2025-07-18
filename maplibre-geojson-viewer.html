@@ -143,19 +143,19 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>MapLibre GL JS GeoJSON Viewer</h1>
+            <h1>DomDom-Map</h1>
         </div>
         
-        <div class="controls">
-            <button class="file-button" onclick="loadGeoJSONData()">GeoJSONデータを読み込み</button>
-            
-            <button class="sample-data-btn" onclick="loadSampleData()">サンプルデータを読み込み</button>
-            
-            <div class="info">
-                <span id="fileInfo">GeoJSONが読み込まれていません</span>
-                <span id="status" class="status" style="display: none;"></span>
-            </div>
-        </div>
+<!--        <div class="controls">-->
+<!--            <button class="file-button" onclick="loadGeoJSONData()">GeoJSONデータを読み込み</button>-->
+<!--            -->
+<!--            <button class="sample-data-btn" onclick="loadSampleData()">サンプルデータを読み込み</button>-->
+<!--            -->
+<!--            <div class="info">-->
+<!--                <span id="fileInfo">GeoJSONが読み込まれていません</span>-->
+<!--                <span id="status" class="status" style="display: none;"></span>-->
+<!--            </div>-->
+<!--        </div>-->
         
         <div class="map-container">
             <div id="map"></div>
@@ -196,10 +196,10 @@
         
         // ステータス表示
         function showStatus(message, isError = false) {
-            const status = document.getElementById('status');
-            status.textContent = message;
-            status.className = `status ${isError ? 'error' : 'success'}`;
-            status.style.display = 'inline-block';
+            // const status = document.getElementById('status');
+            // status.textContent = message;
+            // status.className = `status ${isError ? 'error' : 'success'}`;
+            // status.style.display = 'inline-block';
             
             setTimeout(() => {
                 status.style.display = 'none';
@@ -271,7 +271,7 @@
                 });
                 
                 // データの範囲にマップを合わせる
-                const bounds = new maplibregl.LngLatBounds();
+                // const bounds = new maplibregl.LngLatBounds();
                 
                 function addCoordinatesToBounds(coordinates) {
                     if (typeof coordinates[0] === 'number') {
