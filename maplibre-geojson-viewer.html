@@ -273,21 +273,21 @@
                 // データの範囲にマップを合わせる
                 // const bounds = new maplibregl.LngLatBounds();
                 
-                function addCoordinatesToBounds(coordinates) {
-                    if (typeof coordinates[0] === 'number') {
-                        bounds.extend(coordinates);
-                    } else {
-                        coordinates.forEach(coord => addCoordinatesToBounds(coord));
-                    }
-                }
-                
-                geojsonData.features.forEach(feature => {
-                    addCoordinatesToBounds(feature.geometry.coordinates);
-                });
-                
-                if (!bounds.isEmpty()) {
-                    map.fitBounds(bounds, { padding: 50 });
-                }
+                // function addCoordinatesToBounds(coordinates) {
+                //     if (typeof coordinates[0] === 'number') {
+                //         bounds.extend(coordinates);
+                //     } else {
+                //         coordinates.forEach(coord => addCoordinatesToBounds(coord));
+                //     }
+                // }
+                //
+                // geojsonData.features.forEach(feature => {
+                //     addCoordinatesToBounds(feature.geometry.coordinates);
+                // });
+                //
+                // if (!bounds.isEmpty()) {
+                //     map.fitBounds(bounds, { padding: 50 });
+                // }
                 
                 // ポップアップ機能を追加
                 addPopupHandlers();
